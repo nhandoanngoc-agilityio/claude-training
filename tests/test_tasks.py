@@ -2,6 +2,12 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_version(client):
+    from app.main import app
+
+    assert client.get("/version").json() == {"version": app.version}
+
+
 def test_create_and_get_task(client):
     created = client.post("/tasks", json={"title": "Write report"})
     assert created.status_code == 201

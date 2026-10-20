@@ -9,3 +9,8 @@ app.include_router(tasks.router)
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/version")
+def version() -> dict[str, str]:
+    return {"version": app.version}
