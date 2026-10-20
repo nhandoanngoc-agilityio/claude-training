@@ -38,6 +38,8 @@ uv run pytest
 
 `status` is one of `todo`, `in_progress`, `done`.
 
+`due_before=YYYY-MM-DD` returns tasks due strictly before that date. Tasks without a due date are not included.
+
 `GET /tasks` pages results: `size` defaults to 10 (max 100), and the response includes `total` and `total_pages`.
 
 ## Project layout
