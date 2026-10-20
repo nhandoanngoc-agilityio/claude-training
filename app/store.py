@@ -46,8 +46,7 @@ class TaskStore:
 
     def delete(self, task_id: int) -> bool:
         with self._lock:
-            self._tasks.pop(task_id, None)
-            return True
+            return self._tasks.pop(task_id, None) is not None
 
     def clear(self) -> None:
         with self._lock:
