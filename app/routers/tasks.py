@@ -1,4 +1,3 @@
-import math
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -31,7 +30,7 @@ def list_tasks(
         tasks = [t for t in tasks if t.due_date < due_before]
 
     total = len(tasks)
-    total_pages = math.ceil(total / size)
+    total_pages = -(-total // size)  # round up without floats
     start = (page - 1) * size
     return TaskPage(
         items=tasks[start : start + size],
