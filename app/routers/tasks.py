@@ -7,6 +7,9 @@ from app.store import store
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
+DEFAULT_PAGE_SIZE = 10
+MAX_PAGE_SIZE = 100
+
 
 @router.post("", response_model=Task, status_code=status.HTTP_201_CREATED)
 def create_task(data: TaskCreate) -> Task:
@@ -16,7 +19,7 @@ def create_task(data: TaskCreate) -> Task:
 @router.get("", response_model=TaskPage)
 def list_tasks(
     page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     status_filter: Status | None = Query(None, alias="status"),
     due_before: date | None = None,
 ) -> TaskPage:
