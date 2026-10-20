@@ -29,13 +29,16 @@ uv run pytest
 | Method | Path | What it does |
 |---|---|---|
 | `GET` | `/health` | Liveness check |
+| `GET` | `/version` | Running app version |
 | `POST` | `/tasks` | Create a task (`title`, optional `description`, `due_date`, `status`) |
 | `GET` | `/tasks` | List tasks. Query: `page`, `size`, `status`, `due_before` |
 | `GET` | `/tasks/{id}` | Get one task |
-| `PATCH` | `/tasks/{id}` | Update some fields of a task |
+| `PATCH` | `/tasks/{id}` | Update only the fields sent in the body |
 | `DELETE` | `/tasks/{id}` | Delete a task |
 
 `status` is one of `todo`, `in_progress`, `done`.
+
+`GET /tasks` pages results: `size` defaults to 10 (max 100), and the response includes `total` and `total_pages`.
 
 ## Project layout
 
