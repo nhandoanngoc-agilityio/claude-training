@@ -34,9 +34,13 @@ class TaskStore:
             task = self._tasks.get(task_id)
             if task is None:
                 return None
-            changes = data.model_dump()
-            changes = {k: v for k, v in changes.items() if k != "title" or v is not None}
-            updated = task.model_copy(update=changes)
+            # title is required on Task, so an explicit null is ignored
+            updates = {
+                k: v
+                for k, v in data.model_dump(exclude_unset=True).items()
+                if k != "title" or v is not None
+            }
+            updated = task.model_copy(update=updates)
             self._tasks[task_id] = updated
             return updated
 
