@@ -10,9 +10,9 @@ FastAPI task API used for team training. Data is in memory and resets on restart
 
 ## Layout
 
-- `app/models.py`: request/response models. All input validation lives here.
+- `app/models.py`: request/response models. Body validation lives here; query-param limits (`page`, `size`) are in the router.
 - `app/store.py`: `TaskStore`, the only place that touches stored tasks. Writes take `self._lock`.
-- `app/routers/tasks.py`: `/tasks` endpoints. Thin: validate, call the store, map `None` to 404.
+- `app/routers/tasks.py`: `/tasks` endpoints. Thin: validate, call the store, map `None` to 404. Declare static paths (`/tasks/overdue`) before `/{task_id}`.
 - `tests/`: one file per area (`test_update.py`, `test_filters.py`, `test_paging.py`, ...). Use the `client` fixture; it clears the store per test.
 
 ## Conventions
@@ -21,12 +21,12 @@ FastAPI task API used for team training. Data is in memory and resets on restart
 - Branch `fix/<issue>-<slug>` from `main`. MR description: what / why / how tested / screenshots (curl output), with `Closes #<issue>`.
 - Invalid input gets a 422 from the models. Reject it; don't silently clean it up (e.g. titles are stored exactly as sent).
 - `due_before` is strict and skips undated tasks. `total_pages` rounds up and is 0 for an empty list. Keep these unless a ticket says otherwise.
-- The remote `origin` is GitLab. Name it when pushing: `git push origin <branch>`.
+- The remote `origin` is GitLab. A `github` remote also exists and local `main` tracks it, so always name `origin` when pushing: `git push origin <branch>`.
 
 ## Never do
 
 - Never commit or push directly to `main`; everything goes through an MR.
 - Never remove the `title` null guard in `TaskStore.update`: `{"title": null}` must not wipe a title.
 - Never merge with conflict markers left in, or with failing tests.
-- Never use `git push --force`; use `--force-with-lease` after syncing your branch.
+- Never use `git push --force`. Use `--force-with-lease` only right after `git pull --rebase`; a plain `git fetch` resets the lease and lets you overwrite a partner's commit.
 - Never add a database or a new dependency without asking first.
