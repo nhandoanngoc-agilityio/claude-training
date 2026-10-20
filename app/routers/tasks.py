@@ -25,15 +25,15 @@ def list_tasks(
 ) -> TaskPage:
     tasks = store.list()
     if status_filter is not None:
-        tasks = [t for t in tasks if t.status == status_filter]
+        tasks = [task for task in tasks if task.status == status_filter]
     if due_before is not None:
-        tasks = [t for t in tasks if t.due_date < due_before]
+        tasks = [task for task in tasks if task.due_date < due_before]
 
     total = len(tasks)
     total_pages = -(-total // size)  # round up without floats
-    start = (page - 1) * size
+    offset = (page - 1) * size
     return TaskPage(
-        items=tasks[start : start + size],
+        items=tasks[offset : offset + size],
         page=page,
         size=size,
         total=total,
