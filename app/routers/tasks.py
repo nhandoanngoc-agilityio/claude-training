@@ -30,7 +30,7 @@ def list_tasks(
         tasks = [task for task in tasks if task.due_date is not None and task.due_date < due_before]
 
     total = len(tasks)
-    total_pages = total // size
+    total_pages = -(-total // size)  # round up without floats
     offset = (page - 1) * size
     return TaskPage(
         items=tasks[offset : offset + size],
