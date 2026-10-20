@@ -27,7 +27,7 @@ def list_tasks(
     if status_filter is not None:
         tasks = [t for t in tasks if t.status == status_filter]
     if due_before is not None:
-        tasks = [t for t in tasks if t.due_date < due_before]
+        tasks = [t for t in tasks if t.due_date is not None and t.due_date < due_before]
 
     total = len(tasks)
     total_pages = total // size
