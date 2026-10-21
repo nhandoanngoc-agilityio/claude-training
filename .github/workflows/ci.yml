@@ -1,0 +1,19 @@
+name: CI
+
+# GitLab CI is not available for this project, so tests run here.
+# Runs on every branch push because GitHub main is a stale mirror of GitLab main.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.0
+        with:
+          python-version: "3.11"
+      - run: uv sync --locked
+      - run: uv run pytest -q
