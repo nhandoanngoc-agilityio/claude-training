@@ -22,8 +22,16 @@ def list_tasks(
     size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     status_filter: Status | None = Query(None, alias="status"),
     due_before: date | None = None,
+    q: str | None = Query(None, min_length=1, max_length=200, pattern=r"\S"),
 ) -> TaskPage:
     tasks = store.list()
+    if q is not None:
+        needle = q.casefold()
+        tasks = [
+            task
+            for task in tasks
+            if needle in task.title.casefold() or needle in (task.description or "").casefold()
+        ]
     if status_filter is not None:
         tasks = [task for task in tasks if task.status == status_filter]
     if due_before is not None:
