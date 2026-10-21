@@ -33,6 +33,10 @@ class Task(BaseModel):
     created_at: datetime
 
 
+class OverdueTask(Task):
+    days_late: int
+
+
 class TaskPage(BaseModel):
     items: list[Task]
     page: int
