@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.models import Status, Task, TaskCreate, TaskPage, TaskUpdate
+from app.models import OverdueTask, Status, Task, TaskCreate, TaskPage, TaskUpdate
 from app.store import store
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -39,6 +39,22 @@ def list_tasks(
         total=total,
         total_pages=total_pages,
     )
+
+
+def utc_today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+@router.get("/overdue", response_model=list[OverdueTask])
+def list_overdue_tasks() -> list[OverdueTask]:
+    # strict like due_before: a task due today is not late yet
+    today = utc_today()
+    overdue = [
+        OverdueTask(**task.model_dump(), days_late=(today - task.due_date).days)
+        for task in store.list()
+        if task.status != Status.done and task.due_date is not None and task.due_date < today
+    ]
+    return sorted(overdue, key=lambda t: (-t.days_late, t.id))
 
 
 @router.get("/{task_id}", response_model=Task)
