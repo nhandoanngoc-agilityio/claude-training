@@ -1,3 +1,4 @@
+import unicodedata
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -9,6 +10,11 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 DEFAULT_PAGE_SIZE = 10
 MAX_PAGE_SIZE = 100
+
+
+def search_key(text: str) -> str:
+    # canonical caseless form (Unicode D145), recomposed to NFC so "ba" doesn't match "bá"
+    return unicodedata.normalize("NFC", unicodedata.normalize("NFD", text).casefold())
 
 
 @router.post("", response_model=Task, status_code=status.HTTP_201_CREATED)
@@ -26,11 +32,11 @@ def list_tasks(
 ) -> TaskPage:
     tasks = store.list()
     if q is not None:
-        needle = q.casefold()
+        needle = search_key(q)
         tasks = [
             task
             for task in tasks
-            if needle in task.title.casefold() or needle in (task.description or "").casefold()
+            if needle in search_key(task.title) or needle in search_key(task.description or "")
         ]
     if status_filter is not None:
         tasks = [task for task in tasks if task.status == status_filter]
