@@ -7,6 +7,16 @@ def titles(response):
     return [t["title"] for t in response.json()["items"]]
 
 
+def nfc(text):
+    return unicodedata.normalize("NFC", text)
+
+
+def nfd(text):
+    text = unicodedata.normalize("NFD", text)
+    assert text != nfc(text)
+    return text
+
+
 def test_search_is_case_insensitive_substring(client):
     """#9: "rep" finds "Report"."""
     client.post("/tasks", json={"title": "Report"})
@@ -81,15 +91,34 @@ def test_search_paging_counts_only_matches(client):
     assert titles(response) == ["Report 4"]
 
 
-@pytest.mark.parametrize("q", ["", "   ", "a" * 201])
-def test_search_rejects_invalid_query(client, q):
+@pytest.mark.parametrize(
+    ("q", "error_type"),
+    [
+        pytest.param("", "string_too_short", id="empty"),
+        pytest.param("   ", "string_pattern_mismatch", id="blank"),
+        pytest.param("a" * 201, "string_too_long", id="ascii-201cp"),
+        # #14: max_length counts code points, so NFD text hits the limit sooner.
+        pytest.param(nfd("\u1ec7" * 67), "string_too_long", id="nfd-201cp"),  # "ệ"
+        pytest.param(nfd("\u1ec7" * 70), "string_too_long", id="nfd-210cp"),
+    ],
+)
+def test_search_rejects_invalid_query(client, q, error_type):
     response = client.get("/tasks", params={"q": q})
 
     assert response.status_code == 422
+    assert response.json()["detail"][0]["type"] == error_type
 
 
-def test_search_accepts_max_length_query(client):
-    response = client.get("/tasks", params={"q": "a" * 200})
+@pytest.mark.parametrize(
+    "q",
+    [
+        pytest.param("a" * 200, id="ascii-200cp"),
+        pytest.param("\u1ec7" * 70, id="nfc-70cp"),  # "ệ"
+        pytest.param(nfd("\u1ec7" * 66) + "ab", id="nfd-200cp"),
+    ],
+)
+def test_search_accepts_max_length_query(client, q):
+    response = client.get("/tasks", params={"q": q})
 
     assert response.status_code == 200
 
@@ -97,16 +126,6 @@ def test_search_accepts_max_length_query(client):
 # Non-ASCII text is written with escapes so editors can't re-normalize it.
 REPORT_TITLE = "B\u00e1o c\u00e1o tu\u1ea7n"  # "Báo cáo tuần"
 REPORT_QUERY = "b\u00e1o c\u00e1o"  # "báo cáo"
-
-
-def nfc(text):
-    return unicodedata.normalize("NFC", text)
-
-
-def nfd(text):
-    text = unicodedata.normalize("NFD", text)
-    assert text != nfc(text)
-    return text
 
 
 @pytest.mark.parametrize("title_form", [nfc, nfd])

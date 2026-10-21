@@ -21,6 +21,7 @@ FastAPI task API used for team training. Data is in memory and resets on restart
 - Branch `fix/<issue>-<slug>` from `main`. MR description: what / why / how tested / screenshots (curl output), with `Closes #<issue>`.
 - Invalid input gets a 422 from the models. Reject it; don't silently clean it up (e.g. titles are stored exactly as sent).
 - `due_before` is strict and skips undated tasks. `total_pages` rounds up and is 0 for an empty list. Keep these unless a ticket says otherwise.
+- Length limits (`title`, `q`) count code points; NFD text is not normalized before the check (#14).
 - The remote `origin` is GitLab. A `github` remote also exists and local `main` tracks it, so always name `origin` when pushing: `git push origin <branch>`.
 
 ## Never do
