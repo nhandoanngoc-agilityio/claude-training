@@ -1,6 +1,6 @@
 [project]
 name = "task-tracker"
-version = "0.2.0"
+version = "0.3.0"
 description = "Small FastAPI task tracker used for the Claude Code training."
 requires-python = ">=3.11"
 dependencies = [
