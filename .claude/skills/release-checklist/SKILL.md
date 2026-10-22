@@ -8,7 +8,9 @@ description: Runs the team's release process step by step, from version bump thr
 Every release follows the same gated sequence. Do not skip a step or change its order.
 If a gate fails, stop, report what failed, and fix it before you continue. Never "note it and move on".
 
-<!-- TODO(team): still to fill in: <STAGING_DEPLOY_COMMAND>, <SMOKE_TEST_COMMAND>, <PROD_DEPLOY_COMMAND>, <PROD_URL>, <DASHBOARD_URL>, <#releases CHANNEL>, <MILESTONE>, and the /ready decision (see Gotchas). -->
+<!-- TODO(team): still to fill in: <#releases CHANNEL>, <OWNER or CHANNEL> in the announcement, <MILESTONE>, <SECOND_REVIEWER> (hotfix.md), <ON_CALL> (rollback.md). -->
+
+This app has no deployed environments. "Staging" is the app run locally from `main`, and a release is the tag plus its GitLab release. The smoke tests are `scripts/smoke.sh` in the repo.
 
 ## Pick the release type first
 
@@ -63,11 +65,18 @@ If it exits non-zero, fix what it reports and run it again. Only go on when it p
 3. Add a `## [<VERSION>] - <YYYY-MM-DD>` section to `CHANGELOG.md`, grouped into Added / Changed / Fixed / Removed. Write for users, not as a list of commit hashes.
 4. Push with `git push origin release/v<VERSION>` and open an MR with `glab mr create --title "Release v<VERSION>" --target-branch main`. Get it reviewed and merged, then `git switch main && git pull --ff-only origin main`.
 
-### 4. Release candidate on staging
+### 4. Release candidate on staging (local)
 
-1. Deploy: `<STAGING_DEPLOY_COMMAND>`
-2. Run the smoke tests: `<SMOKE_TEST_COMMAND> --env staging`
-3. If they fail, do not try to fix them on staging. Fix them on the default branch and go back to step 1.
+1. On the freshly pulled `main`, start the app and run the smoke tests against it, then stop it:
+
+```bash
+uv run uvicorn app.main:app --port 8001 > /dev/null 2>&1 &
+bash scripts/smoke.sh http://127.0.0.1:8001 <VERSION>
+pkill -f 'uvicorn app.main:app --port 8001'
+```
+
+2. Only go on when it prints `SMOKE OK`. It checks `/health`, that `/version` is `<VERSION>`, and a create / get / search / delete round trip.
+3. If they fail, do not patch the running app. Fix them on the default branch and go back to step 1.
 
 ### 5. Approval gate
 
@@ -82,15 +91,21 @@ git tag -a v<VERSION> -m "Release v<VERSION>"
 git push origin v<VERSION>
 ```
 
-Then: `<PROD_DEPLOY_COMMAND>`. Pipelines: https://gitlab.asoft-python.com/nhan.doanngoc/claude-training/-/pipelines. Note: `.gitlab-ci.yml` only runs on branches (`if: $CI_COMMIT_BRANCH`), so pushing a tag does not start a pipeline today.
-Do not run anything after this until the deploy reports success.
+There is no production deploy: the pushed tag is the release. Note: `.gitlab-ci.yml` only runs on branches (`if: $CI_COMMIT_BRANCH`), so pushing a tag does not start a pipeline (https://gitlab.asoft-python.com/nhan.doanngoc/claude-training/-/pipelines).
 
 ### 7. Post-release verification
 
-Over the next <15> minutes, check:
-- `<PROD_URL>/ready` returns 200 (not `/health`, see Gotchas)
-- The error rate on <DASHBOARD_URL> is no higher than before the release
-- The smoke tests pass against production: `<SMOKE_TEST_COMMAND> --env prod`
+Check that the tag itself works. Check it out, run the smoke tests on it, then go back to `main`:
+
+```bash
+git switch --detach v<VERSION>
+uv run uvicorn app.main:app --port 8001 > /dev/null 2>&1 &
+bash scripts/smoke.sh http://127.0.0.1:8001 <VERSION>
+pkill -f 'uvicorn app.main:app --port 8001'
+git switch main
+```
+
+Also confirm `git ls-remote --tags origin v<VERSION>` points at the release merge commit.
 
 If any check fails, go to `references/rollback.md` right away.
 
@@ -109,8 +124,8 @@ If any check fails, go to `references/rollback.md` right away.
 
 <!-- TODO(team): these are common starting points. Replace them with your own real failure cases. Every time you have to correct the agent during a release, add a line here. -->
 
-- `/health` returns 200 as long as the web server is up, even when the database is down. Always check `/ready`.
-- If the release has a database migration, rolling back the code does **not** roll back the schema. Migrations must be backward compatible with the previous release (expand, then contract). If one isn't, flag it in step 2 and get approval for that specifically.
+- The app has no database or other dependencies, so `/health` is the readiness check (the smoke script calls it first). If a database is ever added, add a `/ready` endpoint that checks it and use that instead, because `/health` stays 200 while the database is down.
+- If a release ever has a database migration (there is none today; data is in memory), rolling back the code does **not** roll back the schema. Migrations must be backward compatible with the previous release (expand, then contract). If one isn't, flag it in step 2 and get approval for that specifically.
 - Push the tag only after the release MR is merged and you have pulled again. A tag on a stale local commit ships the wrong code.
 - CI on the release MR is not CI on the merge commit. Preflight checks HEAD of the default branch for this reason.
 - The step 8 notes command stops at the next `## [` heading. Older headings without brackets (e.g. `## 0.2.0`) don't match, so the notes would run to the end of the file. Write every version heading as `## [X.Y.Z]`.
