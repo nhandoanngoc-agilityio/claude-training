@@ -51,10 +51,12 @@ If it exits non-zero, fix what it reports and run it again. Only go on when it p
 ### 2. Decide the version and write the plan
 
 1. List the changes since the last tag: `git log $(git describe --tags --abbrev=0)..HEAD --oneline`
-2. Pick the version using semver:
-   - any breaking change (`!` or `BREAKING CHANGE:`) → major
-   - any `feat:` → minor
-   - otherwise → patch
+2. Pick the version using semver. This repo's commits don't use `feat:` / `fix:` prefixes, so judge each change by what it does to the API: read the linked issue (`#N`) and the diff under `app/`, not just the commit subject.
+   - breaking change → major. That means removing or renaming an endpoint or field, or changing intended behavior so that a valid request now fails. While the version is `0.x`, bump minor instead and list it under "Breaking changes for users" in the plan.
+   - A bug fix is not breaking, even if clients notice it (e.g. #11: an unknown id on `DELETE` now returns 404). List these under "Changed" in the changelog and as behavior changes in the plan.
+   - new endpoint, parameter or field → minor
+   - only fixes, docs, tests, CI, or tooling (e.g. `.claude/`) → patch
+   - Name the deciding changes in the plan, e.g. "minor: new `GET /tasks/overdue` (#10)".
 3. Write `release-plan.md` from `assets/release-plan-template.md`. Fill in the version, the change list, any migrations, feature flags to turn on, and the rollback target (the current production tag).
 4. Show the plan to the user. If there is a database migration, say so clearly. Migrations change how rollback works (see Gotchas).
 
