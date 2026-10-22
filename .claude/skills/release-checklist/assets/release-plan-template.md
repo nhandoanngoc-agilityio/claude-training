@@ -6,7 +6,7 @@
 - **Planned date**: <YYYY-MM-DD>
 
 ## Changes
-- <user-facing summary> (#PR)
+- <user-facing summary> (#<issue>)
 
 ## Risk
 - **Database migrations**: none | <list, and whether each is backward compatible>

@@ -8,7 +8,7 @@ description: Runs the team's release process step by step, from version bump thr
 Every release follows the same gated sequence. Do not skip a step or change its order.
 If a gate fails, stop, report what failed, and fix it before you continue. Never "note it and move on".
 
-<!-- TODO(team): replace every <PLACEHOLDER> with your real commands, URLs and channels. -->
+<!-- TODO(team): still to fill in: <STAGING_DEPLOY_COMMAND>, <SMOKE_TEST_COMMAND>, <PROD_DEPLOY_COMMAND>, <PROD_URL>, <DASHBOARD_URL>, <#releases CHANNEL>, <MILESTONE>, and the /ready decision (see Gotchas). -->
 
 ## Pick the release type first
 
@@ -24,7 +24,7 @@ Copy this into your reply and tick each box as you finish it:
 Release <VERSION> progress:
 - [ ] 1. Preflight passes (scripts/preflight.sh)
 - [ ] 2. Version decided and release plan written
-- [ ] 3. Version bumped, changelog updated, release PR merged
+- [ ] 3. Version bumped, changelog updated, release MR merged
 - [ ] 4. Release candidate deployed to staging, smoke tests pass
 - [ ] 5. Human approval received
 - [ ] 6. Tagged and deployed to production
@@ -37,13 +37,13 @@ Release <VERSION> progress:
 
 ### 1. Preflight
 
-Run exactly:
+Run exactly, from the repo root:
 
 ```bash
-bash scripts/preflight.sh
+bash .claude/skills/release-checklist/scripts/preflight.sh
 ```
 
-It checks: you are on the default branch, the working tree is clean, the branch is up to date with the remote, and CI on HEAD is green.
+It checks: you are on the default branch, the working tree is clean, the branch is up to date with the remote, and the GitLab pipeline on HEAD is green (via `glab`).
 If it exits non-zero, fix what it reports and run it again. Only go on when it prints `PREFLIGHT OK`.
 
 ### 2. Decide the version and write the plan
@@ -59,9 +59,9 @@ If it exits non-zero, fix what it reports and run it again. Only go on when it p
 ### 3. Bump the version and update the changelog
 
 1. Create the branch `release/v<VERSION>`.
-2. Bump the version in <VERSION_FILES, e.g. package.json, pyproject.toml>.
+2. Bump the version in `pyproject.toml` and in `app/main.py` (`FastAPI(version=...)`, which `GET /version` returns), then run `uv lock` to update `uv.lock`.
 3. Add a `## [<VERSION>] - <YYYY-MM-DD>` section to `CHANGELOG.md`, grouped into Added / Changed / Fixed / Removed. Write for users, not as a list of commit hashes.
-4. Open a PR titled `Release v<VERSION>`, get it reviewed, and merge it. Then pull the default branch again.
+4. Push with `git push origin release/v<VERSION>` and open an MR with `glab mr create --title "Release v<VERSION>" --target-branch main`. Get it reviewed and merged, then `git switch main && git pull --ff-only origin main`.
 
 ### 4. Release candidate on staging
 
@@ -82,7 +82,7 @@ git tag -a v<VERSION> -m "Release v<VERSION>"
 git push origin v<VERSION>
 ```
 
-Then: `<PROD_DEPLOY_COMMAND>` (or watch the tag-triggered pipeline at <CI_URL>).
+Then: `<PROD_DEPLOY_COMMAND>`. Pipelines: https://gitlab.asoft-python.com/nhan.doanngoc/claude-training/-/pipelines. Note: `.gitlab-ci.yml` only runs on branches (`if: $CI_COMMIT_BRANCH`), so pushing a tag does not start a pipeline today.
 Do not run anything after this until the deploy reports success.
 
 ### 7. Post-release verification
@@ -96,7 +96,7 @@ If any check fails, go to `references/rollback.md` right away.
 
 ### 8. Release notes and announcement
 
-1. Create the GitHub release from the tag, with the changelog section as its body: `gh release create v<VERSION> --notes-file <(sed -n '/## \[<VERSION>\]/,/## \[/p' CHANGELOG.md | sed '$d')`
+1. Create the GitLab release from the tag, with the changelog section as its body: `glab release create v<VERSION> --name "v<VERSION>" --notes-file <(sed -n '/## \[<VERSION>\]/,/## \[/p' CHANGELOG.md | sed '$d')`
 2. Write the announcement from `assets/announcement-template.md`. Before posting it to <#releases CHANNEL>, show the draft to the user and post only after they approve it.
 
 ### 9. Close-out
@@ -111,6 +111,8 @@ If any check fails, go to `references/rollback.md` right away.
 
 - `/health` returns 200 as long as the web server is up, even when the database is down. Always check `/ready`.
 - If the release has a database migration, rolling back the code does **not** roll back the schema. Migrations must be backward compatible with the previous release (expand, then contract). If one isn't, flag it in step 2 and get approval for that specifically.
-- Push the tag only after the release PR is merged and you have pulled again. A tag on a stale local commit ships the wrong code.
-- CI on the release PR is not CI on the merge commit. Preflight checks HEAD of the default branch for this reason.
+- Push the tag only after the release MR is merged and you have pulled again. A tag on a stale local commit ships the wrong code.
+- CI on the release MR is not CI on the merge commit. Preflight checks HEAD of the default branch for this reason.
+- The step 8 notes command stops at the next `## [` heading. Older headings without brackets (e.g. `## 0.2.0`) don't match, so the notes would run to the end of the file. Write every version heading as `## [X.Y.Z]`.
+- Push to `origin` (GitLab) only. Local `main` tracks the `github` mirror, so a bare `git push` goes to the wrong remote.
 - Don't release on Fridays or before a holiday unless the user explicitly confirms it's a hotfix.
