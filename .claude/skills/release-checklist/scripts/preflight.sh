@@ -20,17 +20,22 @@ local_sha="$(git rev-parse HEAD)"
 remote_sha="$(git rev-parse "$REMOTE/$DEFAULT_BRANCH")"
 [ "$local_sha" = "$remote_sha" ] || fail "HEAD ($local_sha) differs from $REMOTE/$DEFAULT_BRANCH ($remote_sha)" "git pull --ff-only"
 
-if command -v gh >/dev/null 2>&1; then
-  ci="$(gh run list --branch "$DEFAULT_BRANCH" --commit "$remote_sha" --json conclusion,status \
-        --jq 'if length == 0 then "none" elif all(.conclusion == "success") then "success" elif any(.status != "completed") then "pending" else "failure" end' 2>/dev/null)"
+if command -v glab >/dev/null 2>&1; then
+  ci="$(glab api "projects/:id/pipelines?sha=$remote_sha&ref=$DEFAULT_BRANCH" 2>/dev/null | python3 -c '
+import json,sys
+ps=json.load(sys.stdin)
+if not ps: print("none")
+elif ps[0]["status"]=="success": print("success")
+elif ps[0]["status"] in ("created","pending","running","waiting_for_resource","preparing"): print("pending")
+else: print("failure")')"
   case "$ci" in
     success) ;;
     pending) fail "CI is still running on $remote_sha" "wait for it to finish, then rerun preflight" ;;
-    none)    fail "no CI runs found for $remote_sha" "check the CI pipeline was triggered" ;;
-    *)       fail "CI is not green on $remote_sha" "gh run list --commit $remote_sha" ;;
+    none)    fail "no CI pipelines found for $remote_sha" "check the GitLab pipeline was triggered" ;;
+    *)       fail "CI is not green on $remote_sha" "glab ci list" ;;
   esac
 else
-  fail "gh CLI not installed, cannot check CI" "install gh or check CI manually and tell the user"
+  fail "glab CLI not installed, cannot check CI" "install glab or check CI manually and tell the user"
 fi
 
 if [ "$failures" -gt 0 ]; then
