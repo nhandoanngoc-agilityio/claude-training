@@ -8,8 +8,8 @@ Exit 0 lets the command run.
 Blocked:
 - rm with both recursive and force flags (rm -rf, rm -r -f, rm --recursive --force)
 - git push --force / -f / +refspec   (--force-with-lease is allowed, per CLAUDE.md)
-- git push to main                   (everything goes through a PR)
-- git commit while on main
+- git push to main, incl. HEAD:refs/heads/main (everything goes through a PR)
+- git commit while on main, incl. `git checkout main && git commit`
 - git reset --hard
 
 Commands are split on ; && || | & and wrappers like `sudo`, `env X=1`,
@@ -98,7 +98,24 @@ def check_rm(args: list[str]) -> str | None:
     return None
 
 
-def check_git(args: list[str], cwd: str | None) -> str | None:
+def switch_target(sub: str, rest: list[str]) -> str | None:
+    """Branch that `git checkout`/`git switch` moves to, or None if it doesn't switch."""
+    if "--" in rest:  # `git checkout main -- file` restores files, it doesn't switch
+        return None
+    for i, arg in enumerate(rest):
+        if arg in ("-b", "-B", "-c", "-C", "--orphan") and i + 1 < len(rest):
+            return rest[i + 1]
+    positional = [a for a in rest if not a.startswith("-")]
+    return positional[0] if positional else None
+
+
+def push_destinations(rest: list[str]) -> list[str]:
+    """Remote branch names a push writes to, e.g. HEAD:refs/heads/main -> main."""
+    refspecs = [a for a in rest if not a.startswith("-")][1:]  # skip the remote name
+    return [r.lstrip("+").split(":")[-1].removeprefix("refs/heads/") for r in refspecs]
+
+
+def check_git(args: list[str], cwd: str | None, state: dict) -> str | None:
     # skip global options such as `git -C dir` or `git -c key=val`
     i = 0
     while i < len(args) and args[i].startswith("-"):
@@ -112,16 +129,29 @@ def check_git(args: list[str], cwd: str | None) -> str | None:
             return "git push --force is not allowed; use --force-with-lease right after git pull --rebase"
         if any(a.startswith("+") for a in rest):
             return "force-pushing with a +refspec is not allowed"
-        if any(a == PROTECTED_BRANCH or a.endswith(":" + PROTECTED_BRANCH) for a in rest):
+        if PROTECTED_BRANCH in push_destinations(rest):
             return f"pushing to {PROTECTED_BRANCH} is not allowed; push a branch and open a PR"
     elif sub == "reset" and "--hard" in rest:
         return "git reset --hard discards work; use git stash or a new branch instead"
-    elif sub == "commit" and current_branch(cwd) == PROTECTED_BRANCH:
-        return f"committing directly on {PROTECTED_BRANCH} is not allowed; create a branch first (fix/<issue>-<slug>)"
+    elif sub in ("checkout", "switch"):
+        target = switch_target(sub, rest)
+        if target:
+            state["branch"] = target  # later segments in this command run on this branch
+    elif sub == "commit":
+        if "branch" not in state:
+            state["branch"] = current_branch(cwd)
+        if state["branch"] == PROTECTED_BRANCH:
+            return f"committing directly on {PROTECTED_BRANCH} is not allowed; create a branch first (fix/<issue>-<slug>)"
     return None
 
 
-def find_violation(command: str, cwd: str | None = None, depth: int = 0) -> str | None:
+def find_violation(command: str, cwd: str | None = None, depth: int = 0, state: dict | None = None) -> str | None:
+    """Return the reason a command breaks a rule, or None.
+
+    `state` carries the branch across segments, so `git checkout main && git commit`
+    is judged on main, not on whatever branch was checked out before the command.
+    """
+    state = {} if state is None else state
     if depth > 3:
         return None
     for segment in split_segments(command):
@@ -132,7 +162,7 @@ def find_violation(command: str, cwd: str | None = None, depth: int = 0) -> str 
         if prog in SHELLS and "-c" in tokens:
             idx = tokens.index("-c")
             if idx + 1 < len(tokens):
-                reason = find_violation(tokens[idx + 1], cwd, depth + 1)
+                reason = find_violation(tokens[idx + 1], cwd, depth + 1, state)
                 if reason:
                     return reason
         elif prog == "rm":
@@ -140,7 +170,7 @@ def find_violation(command: str, cwd: str | None = None, depth: int = 0) -> str 
             if reason:
                 return reason
         elif prog == "git":
-            reason = check_git(tokens[1:], cwd)
+            reason = check_git(tokens[1:], cwd, state)
             if reason:
                 return reason
     return None
