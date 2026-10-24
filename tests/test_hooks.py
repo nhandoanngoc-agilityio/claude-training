@@ -38,6 +38,8 @@ def run_hook(command: str, cwd: str | None = None) -> subprocess.CompletedProces
         "git push origin +fix/1-x",
         "git push origin main",
         "git push origin HEAD:main",
+        "git push origin HEAD:refs/heads/main",
+        "git push origin refs/heads/main",
         "git reset --hard HEAD~1",
         "git -C . reset --hard",
     ],
@@ -76,6 +78,31 @@ def test_blocks_commit_on_main_but_not_on_branch(tmp_path):
 
     git("checkout", "-b", "fix/1-x")
     assert run_hook("git commit -m x", cwd=str(tmp_path)).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git checkout main && git commit -m x",
+        "git switch main; git commit -m x",
+        "git checkout fix/1-x && git checkout main && git commit -am x",
+    ],
+)
+def test_blocks_commit_after_switching_to_main_in_same_command(tmp_path, command):
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-b", "main")
+    git("checkout", "-b", "fix/1-x")
+    assert run_hook(command, cwd=str(tmp_path)).returncode == 2
+
+
+def test_allows_commit_after_switching_away_from_main(tmp_path):
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-b", "main")
+    assert run_hook("git checkout -b fix/2-y && git commit -m x", cwd=str(tmp_path)).returncode == 0
 
 
 def test_malformed_input_never_blocks():
