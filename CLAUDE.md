@@ -18,15 +18,16 @@ FastAPI task API used for team training. Data is in memory and resets on restart
 ## Conventions
 
 - Bug fix = failing test commit first, then the fix, as small separate commits.
-- Branch `fix/<issue>-<slug>` from `main`. MR description: what / why / how tested / screenshots (curl output), with `Closes #<issue>`.
+- Branch `fix/<issue>-<slug>` from `main`. PR description: what / why / how tested / screenshots (curl output), with `Closes #<issue>`.
 - Invalid input gets a 422 from the models. Reject it; don't silently clean it up (e.g. titles are stored exactly as sent).
 - `due_before` is strict and skips undated tasks. `total_pages` rounds up and is 0 for an empty list. Keep these unless a ticket says otherwise.
 - Length limits (`title`, `q`) count code points; NFD text is not normalized before the check (#14).
-- The remote `origin` is GitLab. A `github` remote also exists and local `main` tracks it, so always name `origin` when pushing: `git push origin <branch>`.
+- We work on GitHub for now. The remote `origin` is GitHub (`nhandoanngoc-agilityio/claude-training`). Push with `git push origin <branch>` and open PRs with `gh pr create --base main`.
+- CI runs in GitHub Actions (`.github/workflows/ci.yml`). `.gitlab-ci.yml` is kept only for switching back to GitLab later; don't change it unless asked.
 
 ## Never do
 
-- Never commit or push directly to `main`; everything goes through an MR.
+- Never commit or push directly to `main`; everything goes through a PR.
 - Never remove the `title` null guard in `TaskStore.update`: `{"title": null}` must not wipe a title.
 - Never merge with conflict markers left in, or with failing tests.
 - Never use `git push --force`. Use `--force-with-lease` only right after `git pull --rebase`; a plain `git fetch` resets the lease and lets you overwrite a partner's commit.
