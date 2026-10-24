@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Claude Code `PreToolUse` hook (`.claude/hooks/block_forbidden.py`) that blocks the CLAUDE.md "Never do" commands: `rm -rf`, `git push --force`, pushing or committing to `main`, and `git reset --hard`. Covered by `tests/test_hooks.py`.
+
 ## [0.3.0] - 2026-10-22
 
 ### Added

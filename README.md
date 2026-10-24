@@ -52,3 +52,16 @@ app/
   routers/tasks.py /tasks endpoints
 tests/             pytest suite (uses FastAPI's TestClient)
 ```
+
+## Claude Code hooks
+
+`.claude/settings.json` registers a team-wide `PreToolUse` hook, `.claude/hooks/block_forbidden.py`. Before Claude runs a shell command, the hook blocks anything on the CLAUDE.md "Never do" list and tells Claude why:
+
+- `rm` with recursive + force flags (`rm -rf`, `rm -r -f`, ...)
+- `git push --force` / `-f` / `+refspec` (`--force-with-lease` is still allowed)
+- pushing to `main`, or committing while on `main`
+- `git reset --hard`
+
+It needs only `python3`. Run `/hooks` in Claude Code to see it, and `uv run pytest tests/test_hooks.py` to test it.
+
+Optional personal hooks (format-on-edit with ruff, notify-on-finish) live in `.claude/settings.local.json`, which is git-ignored.
