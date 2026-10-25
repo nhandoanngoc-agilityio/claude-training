@@ -126,7 +126,10 @@ def check_git(args: list[str], cwd: str | None, state: dict) -> str | None:
     sub, rest = args[i], args[i + 1 :]
 
     if sub == "push":
-        if any(a in ("--force", "-f") or (a.startswith("-") and not a.startswith("--") and "f" in a) for a in rest):
+        if any(
+            a in ("--force", "-f") or (a.startswith("-") and not a.startswith("--") and "f" in a)
+            for a in rest
+        ):
             return "git push --force is not allowed; use --force-with-lease right after git pull --rebase"
         if any(a.startswith("+") for a in rest):
             return "force-pushing with a +refspec is not allowed"
@@ -136,7 +139,9 @@ def check_git(args: list[str], cwd: str | None, state: dict) -> str | None:
         if not destinations or "HEAD" in destinations:  # pushes the current branch
             if "branch" not in state:
                 state["branch"] = current_branch(cwd)
-            destinations = [state["branch"] if d == "HEAD" else d for d in destinations] or [state["branch"]]
+            destinations = [state["branch"] if d == "HEAD" else d for d in destinations] or [
+                state["branch"]
+            ]
         if PROTECTED_BRANCH in destinations:
             return f"pushing to {PROTECTED_BRANCH} is not allowed; push a branch and open a PR"
     elif sub == "reset" and "--hard" in rest:
@@ -153,7 +158,9 @@ def check_git(args: list[str], cwd: str | None, state: dict) -> str | None:
     return None
 
 
-def find_violation(command: str, cwd: str | None = None, depth: int = 0, state: dict | None = None) -> str | None:
+def find_violation(
+    command: str, cwd: str | None = None, depth: int = 0, state: dict | None = None
+) -> str | None:
     """Return the reason a command breaks a rule, or None.
 
     `state` carries the branch across segments, so `git checkout main && git commit`
@@ -192,7 +199,10 @@ def main() -> int:
     command = (payload.get("tool_input") or {}).get("command") or ""
     reason = find_violation(command, payload.get("cwd"))
     if reason:
-        print(f"Blocked by team policy (CLAUDE.md 'Never do'): {reason}.\nCommand: {command}", file=sys.stderr)
+        print(
+            f"Blocked by team policy (CLAUDE.md 'Never do'): {reason}.\nCommand: {command}",
+            file=sys.stderr,
+        )
         return 2
     return 0
 
