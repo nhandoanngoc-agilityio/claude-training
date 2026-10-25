@@ -14,6 +14,7 @@ FastAPI task API used for team training. Data is in memory and resets on restart
 - `app/store.py`: `TaskStore`, the only place that touches stored tasks. Writes take `self._lock`.
 - `app/routers/tasks.py`: `/tasks` endpoints. Thin: validate, call the store, map `None` to 404. Declare static paths (`/tasks/overdue`) before `/{task_id}`.
 - `tests/`: one file per area (`test_update.py`, `test_filters.py`, `test_paging.py`, ...). Use the `client` fixture; it clears the store per test.
+- `.claude/hooks/` (Claude Code hooks, wired in `.claude/settings.json`) and `.githooks/` (git hooks): tested in `tests/test_hooks.py`, `test_format_hook.py`, `test_githooks.py`. A hook block or approval prompt is team policy: change the approach (branch, PR, specific files) rather than reaching the same result another way.
 
 ## Conventions
 
