@@ -91,3 +91,10 @@ def update_task(task_id: int, data: TaskUpdate) -> Task:
 def delete_task(task_id: int) -> None:
     if not store.delete(task_id):
         raise HTTPException(status_code=404, detail="Task not found")
+
+
+@router.get("/stats")
+def task_stats() -> dict[str, int]:
+    tasks = store.list()
+    done = sum(1 for t in tasks if t.status == "completed")
+    return {"total": len(tasks), "done": done, "open": len(tasks) - done}
