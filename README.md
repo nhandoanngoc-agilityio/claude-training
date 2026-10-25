@@ -59,9 +59,25 @@ tests/             pytest suite (uses FastAPI's TestClient)
 
 - `rm` with recursive + force flags (`rm -rf`, `rm -r -f`, ...)
 - `git push --force` / `-f` / `+refspec` (`--force-with-lease` is still allowed)
-- pushing to `main`, or committing while on `main`
+- pushing to `main` (including `git push` / `git push origin HEAD` while on `main`, and `--all` / `--mirror`), or committing while on `main`
 - `git reset --hard`
 
 It needs only `python3`. Run `/hooks` in Claude Code to see it, and `uv run pytest tests/test_hooks.py` to test it.
+
+Known limits (not blocked):
+
+- `git -C <dir> commit` and `cd <dir> && git commit` are judged on the branch of the directory Claude runs in, not `<dir>`.
+- Other ways to delete or discard work, such as `find -delete` and `git clean -fdx`.
+- Commands inside scripts the hook can't see into (`./script.sh`, `make`, `uv run ...`).
+
+## Git hooks
+
+`.githooks/pre-commit` rejects commits on `main` from any terminal, not just Claude's. Branch protection isn't available on this repo, so enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+It can be skipped with `git commit --no-verify`, and it doesn't run for merge commits (`git merge`, `git pull` without fast-forward). Test it with `uv run pytest tests/test_githooks.py`.
 
 Optional personal hooks (format-on-edit with ruff, notify-on-finish) live in `.claude/settings.local.json`, which is git-ignored.
