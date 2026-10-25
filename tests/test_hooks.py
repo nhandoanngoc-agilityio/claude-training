@@ -115,6 +115,7 @@ def test_allows_commit_after_switching_away_from_main(tmp_path):
         "git push origin",
         "git push origin HEAD",
         "git push -u origin HEAD",
+        "git push origin @",
         "git checkout fix/1-x && git checkout main && git push",
     ],
 )
@@ -132,6 +133,7 @@ def test_blocks_implicit_push_from_main(tmp_path, command):
         "git push",
         "git push origin",
         "git push -u origin HEAD",
+        "git push origin @",
         "git checkout main && git checkout fix/1-x && git push",
     ],
 )
@@ -142,6 +144,94 @@ def test_allows_implicit_push_from_branch(tmp_path, command):
     git("init", "-b", "main")
     git("checkout", "-b", "fix/1-x")
     assert run_hook(command, cwd=str(tmp_path)).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git merge fix/1-x",
+        "git merge --no-ff fix/1-x",
+        "git cherry-pick abc123",
+        "git revert HEAD",
+        "git rebase fix/1-x",
+        "git checkout fix/1-x && git checkout main && git merge fix/1-x",
+    ],
+)
+def test_blocks_history_changes_on_main(tmp_path, command):
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-b", "main")
+    result = run_hook(command, cwd=str(tmp_path))
+    assert result.returncode == 2
+    assert "Blocked by team policy" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git merge --abort",
+        "git rebase --continue",
+        "git cherry-pick --abort",
+        "git revert --quit",
+        "git merge --ff-only origin/main",
+    ],
+)
+def test_allows_finishing_or_fast_forwarding_on_main(tmp_path, command):
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-b", "main")
+    assert run_hook(command, cwd=str(tmp_path)).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["git merge main", "git rebase main", "git cherry-pick abc123", "git revert HEAD"],
+)
+def test_allows_history_changes_on_branch(tmp_path, command):
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-b", "main")
+    git("checkout", "-b", "fix/1-x")
+    assert run_hook(command, cwd=str(tmp_path)).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "uv add sqlalchemy",
+        "uv add --dev pytest-cov",
+        "cd app && uv add redis",
+        "uv pip install redis",
+        "pip install psycopg",
+        "python -m pip install requests",
+        "uv --project . add redis",
+        "uv --directory=app add redis",
+        "uv -q add redis",
+        "pip3.11 install redis",
+    ],
+)
+def test_asks_before_adding_a_dependency(command):
+    result = run_hook(command)
+    assert result.returncode == 0
+    decision = json.loads(result.stdout)["hookSpecificOutput"]
+    assert decision["hookEventName"] == "PreToolUse"
+    assert decision["permissionDecision"] == "ask"
+    assert "dependency" in decision["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize("command", ["uv sync", "uv run pytest", "uv remove httpx", "pip list"])
+def test_does_not_ask_for_other_package_commands(command):
+    result = run_hook(command)
+    assert result.returncode == 0
+    assert result.stdout == ""
+
+
+def test_block_wins_over_ask():
+    result = run_hook("uv add redis && git push --force origin fix/1-x")
+    assert result.returncode == 2
 
 
 def test_malformed_input_never_blocks():

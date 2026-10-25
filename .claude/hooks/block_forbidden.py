@@ -9,9 +9,14 @@ Blocked:
 - rm with both recursive and force flags (rm -rf, rm -r -f, rm --recursive --force)
 - git push --force / -f / +refspec   (--force-with-lease is allowed, per CLAUDE.md)
 - git push to main, incl. HEAD:refs/heads/main (everything goes through a PR)
-- git push / git push origin [HEAD] while on main, and git push --all/--mirror
+- git push / git push origin [HEAD|@] while on main, and git push --all/--mirror
 - git commit while on main, incl. `git checkout main && git commit`
+- git merge / cherry-pick / revert / rebase while on main (except --abort,
+  --continue, --quit, --skip, and merge --ff-only)
 - git reset --hard
+
+Asked (Claude Code prompts the user before running):
+- adding a dependency: uv add, uv pip install, pip install, python -m pip install
 
 Commands are split on ; && || | & and wrappers like `sudo`, `env X=1`,
 `bash -c "..."` are unwrapped, so `cd x && rm -rf y` is still caught.
@@ -21,6 +26,7 @@ Uses only the standard library, so no jq or extra dependency is needed.
 from __future__ import annotations
 
 import json
+import re
 import shlex
 import subprocess
 import sys
@@ -29,6 +35,18 @@ SEPARATORS = {";", "&&", "||", "|", "&", "\n"}
 WRAPPERS = {"sudo", "command", "exec", "nohup", "time", "env", "xargs"}
 SHELLS = {"bash", "sh", "zsh"}
 PROTECTED_BRANCH = "main"
+HISTORY_COMMANDS = {"merge", "cherry-pick", "revert", "rebase"}
+FINISH_FLAGS = {"--abort", "--continue", "--quit", "--skip"}
+UV_VALUE_OPTIONS = {
+    "--directory",
+    "--project",
+    "--config-file",
+    "--cache-dir",
+    "--color",
+    "--python",
+    "-p",
+    "--allow-insecure-host",
+}
 
 
 def split_segments(command: str) -> list[list[str]]:
@@ -113,7 +131,36 @@ def switch_target(sub: str, rest: list[str]) -> str | None:
 def push_destinations(rest: list[str]) -> list[str]:
     """Remote branch names a push writes to, e.g. HEAD:refs/heads/main -> main."""
     refspecs = [a for a in rest if not a.startswith("-")][1:]  # skip the remote name
-    return [r.lstrip("+").split(":")[-1].removeprefix("refs/heads/") for r in refspecs]
+    destinations = [r.lstrip("+").split(":")[-1].removeprefix("refs/heads/") for r in refspecs]
+    return ["HEAD" if d == "@" else d for d in destinations]  # @ is git's alias for HEAD
+
+
+def branch_in(state: dict, cwd: str | None) -> str | None:
+    """Branch the current segment runs on: one switched to earlier in the command, else HEAD's."""
+    if "branch" not in state:
+        state["branch"] = current_branch(cwd)
+    return state["branch"]
+
+
+def skip_uv_globals(args: list[str]) -> list[str]:
+    """Drop uv's global options so `uv --project . add x` is read as `uv add x`."""
+    while args and args[0].startswith("-"):
+        takes_value = args[0] in UV_VALUE_OPTIONS  # `--project=.` carries its value inline
+        args = args[2:] if takes_value else args[1:]
+    return args
+
+
+def check_dependency(prog: str, args: list[str]) -> str | None:
+    if prog == "uv":
+        args = skip_uv_globals(args)
+    adds = (
+        (prog == "uv" and (args[:1] == ["add"] or args[:2] == ["pip", "install"]))
+        or (re.fullmatch(r"pip[\d.]*", prog) and args[:1] == ["install"])
+        or (re.fullmatch(r"python[\d.]*", prog) and args[:3] == ["-m", "pip", "install"])
+    )
+    if adds:
+        return "this adds a dependency, and CLAUDE.md says to ask before adding a dependency or database"
+    return None
 
 
 def check_git(args: list[str], cwd: str | None, state: dict) -> str | None:
@@ -137,11 +184,8 @@ def check_git(args: list[str], cwd: str | None, state: dict) -> str | None:
             return "git push --all/--mirror can update main; push one branch and open a PR"
         destinations = push_destinations(rest)
         if not destinations or "HEAD" in destinations:  # pushes the current branch
-            if "branch" not in state:
-                state["branch"] = current_branch(cwd)
-            destinations = [state["branch"] if d == "HEAD" else d for d in destinations] or [
-                state["branch"]
-            ]
+            branch = branch_in(state, cwd)
+            destinations = [branch if d == "HEAD" else d for d in destinations] or [branch]
         if PROTECTED_BRANCH in destinations:
             return f"pushing to {PROTECTED_BRANCH} is not allowed; push a branch and open a PR"
     elif sub == "reset" and "--hard" in rest:
@@ -151,10 +195,13 @@ def check_git(args: list[str], cwd: str | None, state: dict) -> str | None:
         if target:
             state["branch"] = target  # later segments in this command run on this branch
     elif sub == "commit":
-        if "branch" not in state:
-            state["branch"] = current_branch(cwd)
-        if state["branch"] == PROTECTED_BRANCH:
+        if branch_in(state, cwd) == PROTECTED_BRANCH:
             return f"committing directly on {PROTECTED_BRANCH} is not allowed; create a branch first (fix/<issue>-<slug>)"
+    elif sub in HISTORY_COMMANDS:
+        finishing = any(a in FINISH_FLAGS for a in rest)
+        fast_forward = sub == "merge" and "--ff-only" in rest
+        if not finishing and not fast_forward and branch_in(state, cwd) == PROTECTED_BRANCH:
+            return f"git {sub} on {PROTECTED_BRANCH} changes its history; do it on a branch and open a PR"
     return None
 
 
@@ -188,6 +235,10 @@ def find_violation(
             reason = check_git(tokens[1:], cwd, state)
             if reason:
                 return reason
+        else:
+            ask = check_dependency(prog, tokens[1:])
+            if ask:
+                state.setdefault("ask", ask)  # main() asks only if nothing else blocks
     return None
 
 
@@ -197,13 +248,21 @@ def main() -> int:
     except json.JSONDecodeError:
         return 0  # never break Claude on malformed input
     command = (payload.get("tool_input") or {}).get("command") or ""
-    reason = find_violation(command, payload.get("cwd"))
+    state: dict = {}
+    reason = find_violation(command, payload.get("cwd"), state=state)
     if reason:
         print(
             f"Blocked by team policy (CLAUDE.md 'Never do'): {reason}.\nCommand: {command}",
             file=sys.stderr,
         )
         return 2
+    if "ask" in state:
+        decision = {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "ask",
+            "permissionDecisionReason": f"Team policy: {state['ask']}.",
+        }
+        print(json.dumps({"hookSpecificOutput": decision}))
     return 0
 
 
