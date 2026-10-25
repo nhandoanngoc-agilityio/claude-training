@@ -42,6 +42,9 @@ def run_hook(command: str, cwd: str | None = None) -> subprocess.CompletedProces
         "git push origin refs/heads/main",
         "git reset --hard HEAD~1",
         "git -C . reset --hard",
+        "git push --all origin",
+        "git push --mirror origin",
+        "git push --branches origin",
     ],
 )
 def test_blocks_forbidden_commands(command):
@@ -103,6 +106,42 @@ def test_allows_commit_after_switching_away_from_main(tmp_path):
 
     git("init", "-b", "main")
     assert run_hook("git checkout -b fix/2-y && git commit -m x", cwd=str(tmp_path)).returncode == 0
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git push",
+        "git push origin",
+        "git push origin HEAD",
+        "git push -u origin HEAD",
+        "git checkout fix/1-x && git checkout main && git push",
+    ],
+)
+def test_blocks_implicit_push_from_main(tmp_path, command):
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-b", "main")
+    assert run_hook(command, cwd=str(tmp_path)).returncode == 2
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git push",
+        "git push origin",
+        "git push -u origin HEAD",
+        "git checkout main && git checkout fix/1-x && git push",
+    ],
+)
+def test_allows_implicit_push_from_branch(tmp_path, command):
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-b", "main")
+    git("checkout", "-b", "fix/1-x")
+    assert run_hook(command, cwd=str(tmp_path)).returncode == 0
 
 
 def test_malformed_input_never_blocks():
