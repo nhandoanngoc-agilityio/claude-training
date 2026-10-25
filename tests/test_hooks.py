@@ -145,5 +145,7 @@ def test_allows_implicit_push_from_branch(tmp_path, command):
 
 
 def test_malformed_input_never_blocks():
-    result = subprocess.run([sys.executable, str(HOOK)], input="not json", capture_output=True, text=True)
+    result = subprocess.run(
+        [sys.executable, str(HOOK)], input="not json", capture_output=True, text=True
+    )
     assert result.returncode == 0
