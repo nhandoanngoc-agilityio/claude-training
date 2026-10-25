@@ -70,6 +70,11 @@ Known limits (not blocked):
 - Other ways to delete or discard work, such as `find -delete` and `git clean -fdx`.
 - Commands inside scripts the hook can't see into (`./script.sh`, `make`, `uv run ...`).
 
+`.claude/settings.json` also registers two convenience hooks:
+
+- `PostToolUse` on `Edit|Write|MultiEdit`: `.claude/hooks/format_on_edit.py` runs `uvx ruff format` on the edited Python file (line length 100, from `pyproject.toml`). It's skipped if `uvx` isn't installed. Test it with `uv run pytest tests/test_format_hook.py`.
+- `Stop`: `.claude/hooks/notify_on_finish.py` shows a desktop notification when Claude finishes its turn (`osascript` on macOS, `notify-send` on Linux, a terminal bell otherwise).
+
 ## Git hooks
 
 `.githooks/pre-commit` rejects commits on `main` from any terminal, not just Claude's. Branch protection isn't available on this repo, so enable it once per clone:
@@ -79,5 +84,3 @@ git config core.hooksPath .githooks
 ```
 
 It can be skipped with `git commit --no-verify`, and it doesn't run for merge commits (`git merge`, `git pull` without fast-forward). Test it with `uv run pytest tests/test_githooks.py`.
-
-Optional personal hooks (format-on-edit with ruff, notify-on-finish) live in `.claude/settings.local.json`, which is git-ignored.

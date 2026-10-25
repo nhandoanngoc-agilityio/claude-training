@@ -6,5 +6,5 @@ __pycache__/
 # Playwright MCP snapshots, console logs, screenshots
 .playwright-mcp/
 
-# Personal Claude Code settings (format-on-edit, notify-on-finish hooks)
+# Personal Claude Code settings
 .claude/settings.local.json
