@@ -26,6 +26,7 @@ Uses only the standard library, so no jq or extra dependency is needed.
 from __future__ import annotations
 
 import json
+import re
 import shlex
 import subprocess
 import sys
@@ -36,6 +37,16 @@ SHELLS = {"bash", "sh", "zsh"}
 PROTECTED_BRANCH = "main"
 HISTORY_COMMANDS = {"merge", "cherry-pick", "revert", "rebase"}
 FINISH_FLAGS = {"--abort", "--continue", "--quit", "--skip"}
+UV_VALUE_OPTIONS = {
+    "--directory",
+    "--project",
+    "--config-file",
+    "--cache-dir",
+    "--color",
+    "--python",
+    "-p",
+    "--allow-insecure-host",
+}
 
 
 def split_segments(command: str) -> list[list[str]]:
@@ -131,11 +142,21 @@ def branch_in(state: dict, cwd: str | None) -> str | None:
     return state["branch"]
 
 
+def skip_uv_globals(args: list[str]) -> list[str]:
+    """Drop uv's global options so `uv --project . add x` is read as `uv add x`."""
+    while args and args[0].startswith("-"):
+        takes_value = args[0] in UV_VALUE_OPTIONS  # `--project=.` carries its value inline
+        args = args[2:] if takes_value else args[1:]
+    return args
+
+
 def check_dependency(prog: str, args: list[str]) -> str | None:
+    if prog == "uv":
+        args = skip_uv_globals(args)
     adds = (
         (prog == "uv" and (args[:1] == ["add"] or args[:2] == ["pip", "install"]))
-        or (prog in ("pip", "pip3") and args[:1] == ["install"])
-        or (prog.startswith("python") and args[:3] == ["-m", "pip", "install"])
+        or (re.fullmatch(r"pip[\d.]*", prog) and args[:1] == ["install"])
+        or (re.fullmatch(r"python[\d.]*", prog) and args[:3] == ["-m", "pip", "install"])
     )
     if adds:
         return "this adds a dependency, and CLAUDE.md says to ask before adding a dependency or database"
