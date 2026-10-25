@@ -207,6 +207,10 @@ def test_allows_history_changes_on_branch(tmp_path, command):
         "uv pip install redis",
         "pip install psycopg",
         "python -m pip install requests",
+        "uv --project . add redis",
+        "uv --directory=app add redis",
+        "uv -q add redis",
+        "pip3.11 install redis",
     ],
 )
 def test_asks_before_adding_a_dependency(command):
