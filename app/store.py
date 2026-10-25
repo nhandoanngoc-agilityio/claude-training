@@ -48,6 +48,14 @@ class TaskStore:
         with self._lock:
             return self._tasks.pop(task_id, None) is not None
 
+    def clear_done(self) -> int:
+        removed = 0
+        for task_id, task in self._tasks.items():
+            if task.status == "done":
+                del self._tasks[task_id]
+                removed += 1
+        return removed
+
     def clear(self) -> None:
         with self._lock:
             self._tasks.clear()

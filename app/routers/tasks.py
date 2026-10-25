@@ -91,3 +91,8 @@ def update_task(task_id: int, data: TaskUpdate) -> Task:
 def delete_task(task_id: int) -> None:
     if not store.delete(task_id):
         raise HTTPException(status_code=404, detail="Task not found")
+
+
+@router.delete("/done")
+def clear_done_tasks() -> dict[str, int]:
+    return {"removed": store.clear_done()}
