@@ -9,6 +9,7 @@ Blocked:
 - rm with both recursive and force flags (rm -rf, rm -r -f, rm --recursive --force)
 - git push --force / -f / +refspec   (--force-with-lease is allowed, per CLAUDE.md)
 - git push to main, incl. HEAD:refs/heads/main (everything goes through a PR)
+- git push / git push origin [HEAD] while on main, and git push --all/--mirror
 - git commit while on main, incl. `git checkout main && git commit`
 - git reset --hard
 
@@ -129,7 +130,14 @@ def check_git(args: list[str], cwd: str | None, state: dict) -> str | None:
             return "git push --force is not allowed; use --force-with-lease right after git pull --rebase"
         if any(a.startswith("+") for a in rest):
             return "force-pushing with a +refspec is not allowed"
-        if PROTECTED_BRANCH in push_destinations(rest):
+        if any(a in ("--all", "--branches", "--mirror") for a in rest):
+            return "git push --all/--mirror can update main; push one branch and open a PR"
+        destinations = push_destinations(rest)
+        if not destinations or "HEAD" in destinations:  # pushes the current branch
+            if "branch" not in state:
+                state["branch"] = current_branch(cwd)
+            destinations = [state["branch"] if d == "HEAD" else d for d in destinations] or [state["branch"]]
+        if PROTECTED_BRANCH in destinations:
             return f"pushing to {PROTECTED_BRANCH} is not allowed; push a branch and open a PR"
     elif sub == "reset" and "--hard" in rest:
         return "git reset --hard discards work; use git stash or a new branch instead"
