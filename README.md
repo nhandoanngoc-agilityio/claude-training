@@ -59,8 +59,11 @@ tests/             pytest suite (uses FastAPI's TestClient)
 
 - `rm` with recursive + force flags (`rm -rf`, `rm -r -f`, ...)
 - `git push --force` / `-f` / `+refspec` (`--force-with-lease` is still allowed)
-- pushing to `main` (including `git push` / `git push origin HEAD` while on `main`, and `--all` / `--mirror`), or committing while on `main`
+- pushing to `main` (including `git push` / `git push origin HEAD` or `@` while on `main`, and `--all` / `--mirror`), or committing while on `main`
+- `git merge` / `cherry-pick` / `revert` / `rebase` while on `main` (`--abort`, `--continue` and `merge --ff-only` are fine)
 - `git reset --hard`
+
+Commands that add a dependency (`uv add`, `uv pip install`, `pip install`) aren't blocked: Claude Code asks you to approve them first.
 
 It needs only `python3`. Run `/hooks` in Claude Code to see it, and `uv run pytest tests/test_hooks.py` to test it.
 
@@ -69,6 +72,7 @@ Known limits (not blocked):
 - `git -C <dir> commit` and `cd <dir> && git commit` are judged on the branch of the directory Claude runs in, not `<dir>`.
 - Other ways to delete or discard work, such as `find -delete` and `git clean -fdx`.
 - Commands inside scripts the hook can't see into (`./script.sh`, `make`, `uv run ...`).
+- `git pull` on `main` can still create a merge commit when it can't fast-forward.
 
 `.claude/settings.json` also registers two convenience hooks:
 
