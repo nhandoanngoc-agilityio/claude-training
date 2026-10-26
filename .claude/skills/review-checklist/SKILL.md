@@ -26,7 +26,8 @@ Mark each one **pass**, **fail** (with file:line and one sentence on why) or **n
 - [ ] Invalid input gets a 422 from the models or `Query(...)` limits. Nothing is silently trimmed, clamped or "fixed" (titles are stored exactly as sent).
 - [ ] Length limits (`title`, `q`) count code points; no NFD normalization before the check.
 - [ ] `due_before` stays strict and skips undated tasks; `total_pages` rounds up and is 0 for an empty list, unless the linked issue says otherwise.
-- [ ] The router stays thin: validate, call the store, map `None` to 404. No storage logic in the router.
+- [ ] Enum fields in request models use the enum type (`Status`), not `str`. `model_copy(update=...)` doesn't validate, so anything passed to it must already be validated.
+- [ ] The router stays thin: validate, call the store, map `None` to 404. No storage logic in the router. Filtering and sorting helpers in the router are fine.
 - [ ] New query params and endpoints are in the README API table.
 
 ### Store (`app/store.py`)
@@ -34,6 +35,12 @@ Mark each one **pass**, **fail** (with file:line and one sentence on why) or **n
 - [ ] No dict is changed while it's being looped over (`for k in self._tasks: del ...`). Build a list of keys first.
 - [ ] The `title` null guard in `TaskStore.update` is still there: `{"title": null}` must not wipe a title.
 - [ ] Reads that are used to compute a write (read-then-write) happen inside the same lock.
+- [ ] Bulk writes are all-or-nothing: every id is checked before any task changes, so a 404 leaves the store untouched.
+- [ ] Counts returned to the client come from what actually changed (duplicate ids are not counted twice).
+
+### Output formats
+- [ ] Timestamps leaving the API (JSON, CSV) are UTC with an offset. No bare `.astimezone()`, which converts to server-local time.
+- [ ] CSV exports escape cells that start with `=`, `+`, `-`, `@`, tab or CR, so a spreadsheet doesn't run them as formulas.
 
 ### Tests and commits
 - [ ] Each bug fix has a failing-test commit before the fix commit (`git log origin/main..HEAD --oneline`).
@@ -53,6 +60,13 @@ Mark each one **pass**, **fail** (with file:line and one sentence on why) or **n
 - [ ] Every new input has a size limit (string length, list size, page size), so one request can't make the server do unbounded work.
 - [ ] Error responses don't leak stack traces or internal paths.
 - [ ] Workflow changes (`.github/workflows/`) don't widen `permissions` or expose secrets to PRs from forks.
+
+### Known non-issues (don't report)
+These came up as false positives in #23. Report them only if the diff changes the reason they're fine.
+- Title sort is code-point order after casefold + NFC. Locale order would need a new dependency.
+- Reads of `self._tasks` without the lock are fine on GIL CPython; the lock rule is for writes and read-then-write.
+- The id pre-sort in `sort_tasks` is the deliberate tie-breaker.
+- Filtering and sorting in the router (see "router stays thin" above).
 
 ## 3. Report
 
