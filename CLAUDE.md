@@ -26,6 +26,16 @@ FastAPI task API used for team training. Data is in memory and resets on restart
 - We work on GitHub for now. The remote `origin` is GitHub (`nhandoanngoc-agilityio/claude-training`). Push with `git push origin <branch>` and open PRs with `gh pr create --base main`.
 - CI runs in GitHub Actions (`.github/workflows/ci.yml`). `.gitlab-ci.yml` is kept only for switching back to GitLab later; don't change it unless asked.
 
+## Where deep reasoning pays
+
+- Default to normal effort for routine edits: single-file fixes with a clear test, docs, small endpoints. On S6 (#25), `low`, `high` and `high` + `ultrathink` made the same correct fix, and `ultrathink` cost ~55% more and took ~2× as long.
+- Use `high` or `ultrathink` when the bug isn't visible in one file or one test:
+  - Concurrency in `TaskStore`: multi-step writes under `self._lock`, partial updates, read-then-write.
+  - Security: user input reaching a shell, a file path, CSV/spreadsheet output, or workflow `permissions`.
+  - Multi-file bugs, where the cause and the symptom are in different files (e.g. a `str` from `models.py` crashing the export in `tasks.py`).
+  - Review triage: deciding whether a finding is real (e.g. #23 row 3, lock-free reads on GIL CPython).
+- Those cases come from #23 (what reviewers missed), not from the #25 timing, which measured a single-file fix only.
+
 ## Never do
 
 - Never commit or push directly to `main`; everything goes through a PR.
