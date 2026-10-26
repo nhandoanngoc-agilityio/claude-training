@@ -10,6 +10,7 @@
 - Team-wide Claude Code hooks: format-on-edit (`uvx ruff format`) and a desktop notification when Claude finishes (#7).
 
 ### Changed
+- `loop.md` covers GitHub instead of GitLab: watch-a-PR and babysit-CI loops, and a `/schedule` morning maintenance routine (#24).
 - Ruff line length is 100, and the codebase was formatted once to match (#5).
 - The Claude review workflow shows Claude's report in the run's Step Summary and declares the `gh` tools it uses (#8).
 
