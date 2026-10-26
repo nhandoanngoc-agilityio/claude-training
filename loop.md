@@ -42,10 +42,13 @@ merge conflicts. Don't push, merge or re-run anything.
 
 ```
 /loop 5m Run `gh run list -R nhandoanngoc-agilityio/claude-training --branch main
---limit 1`. Report the run's status, conclusion and commit title. If it failed,
+--workflow ci.yml --limit 1`. Report the run's status, conclusion and commit title. If it failed,
 show `gh run view <id> --log-failed | tail -30`, name the failing test, and suggest
 a fix in one or two sentences. Don't re-run, push or change anything.
 ```
+
+`--workflow ci.yml` matters: issue and PR comments also start workflow runs on `main`
+(the `Claude Code` workflow), and without the filter the newest of those hides the CI result.
 
 There is no deployment for this app (data is in memory), so CI on GitHub Actions
 is the closest thing to a deploy status.
@@ -62,7 +65,7 @@ is the closest thing to a deploy status.
 ```
 /schedule weekdays at 8:30 In nhandoanngoc-agilityio/claude-training, report:
 1. Open PRs: age, check status, review status. Flag any older than 2 days or with failing checks.
-2. The latest CI run on main: status and conclusion.
+2. The latest CI run on main (workflow ci.yml): status and conclusion.
 3. Remote branches whose PR is merged or closed (candidates to delete).
 4. Open issues labelled day-* with no linked PR.
 Keep it under 20 lines. Don't push, merge, comment, close or delete anything.
