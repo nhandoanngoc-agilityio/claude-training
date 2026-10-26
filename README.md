@@ -40,7 +40,7 @@ uv run pytest
 
 `due_before=YYYY-MM-DD` returns tasks due strictly before that date. Tasks without a due date are not included.
 
-`sort=created_at|due_date|title` orders `GET /tasks` before paging; `order=asc|desc` (default `asc`) only applies with `sort`. Title sorting ignores case. Undated tasks go last when sorting by `due_date`, in both orders. Ties keep id order. Unknown values return 422.
+`sort=created_at|due_date|title` orders `GET /tasks` before paging; `order=asc|desc` (default `asc`) only applies with `sort`. Title sorting ignores case and Unicode normalization form (same as `q`). Undated tasks go last when sorting by `due_date`, in both orders. Ties keep id order. Unknown values return 422.
 
 `GET /tasks` pages results: `size` defaults to 10 (max 100), and the response includes `total` and `total_pages`.
 

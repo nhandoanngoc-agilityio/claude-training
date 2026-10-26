@@ -36,7 +36,7 @@ def sort_tasks(tasks: list[Task], key: SortKey, order: SortOrder) -> list[Task]:
         undated = [t for t in tasks if t.due_date is None]
         return sorted(dated, key=lambda t: t.due_date, reverse=reverse) + undated
     if key == SortKey.title:
-        return sorted(tasks, key=lambda t: t.title.casefold(), reverse=reverse)
+        return sorted(tasks, key=lambda t: search_key(t.title), reverse=reverse)
     return sorted(tasks, key=lambda t: t.created_at, reverse=reverse)
 
 
