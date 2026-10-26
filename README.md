@@ -79,6 +79,10 @@ Known limits (not blocked):
 - `PostToolUse` on `Edit|Write|MultiEdit`: `.claude/hooks/format_on_edit.py` runs `uvx ruff format` on the edited Python file (line length 100, from `pyproject.toml`). It's skipped if `uvx` isn't installed. Test it with `uv run pytest tests/test_format_hook.py`.
 - `Stop`: `.claude/hooks/notify_on_finish.py` shows a desktop notification when Claude finishes its turn (`osascript` on macOS, `notify-send` on Linux, a terminal bell otherwise).
 
+## Review checklist skill
+
+`.claude/skills/review-checklist/` holds the team's review checklist: route order, store locking, the `title` null guard, 422 on bad input, test-first commits and security checks. Claude uses it when asked to review a branch or PR, or to self-review before opening one. `CONTEXT.md` defines the review terms (finding, false positive, seeded branch, ...).
+
 ## Git hooks
 
 `.githooks/pre-commit` rejects commits on `main` from any terminal, not just Claude's. Branch protection isn't available on this repo, so enable it once per clone:
