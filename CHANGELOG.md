@@ -8,6 +8,7 @@
 - The hook also blocks `git push` / `git push origin [HEAD|@]` from `main`, `git push --all` / `--mirror`, and `git merge` / `cherry-pick` / `revert` / `rebase` on `main` (#3, #9).
 - The hook asks for approval before adding a dependency (`uv add`, `uv pip install`, `pip install`) (#9).
 - Versioned git hook `.githooks/pre-commit` rejects commits on `main` from any terminal. Enable it with `git config core.hooksPath .githooks` (#3).
+- `review-checklist` skill for reviewing branches and PRs against the team's conventions, and a `CONTEXT.md` glossary (#26).
 - Team-wide Claude Code hooks: format-on-edit (`uvx ruff format`) and a desktop notification when Claude finishes (#7).
 
 ### Changed

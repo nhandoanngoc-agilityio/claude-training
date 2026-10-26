@@ -94,6 +94,10 @@ Known limits (not blocked):
 
 When to use which: `security-guidance` runs on its own while you work; run `/security-review` or a `claude-security` branch scan before opening a PR that touches input handling, the store, hooks or workflows; run a `claude-security` codebase scan occasionally, not per PR.
 
+## Review checklist skill
+
+`.claude/skills/review-checklist/` holds the team's review checklist: route order, store locking, the `title` null guard, 422 on bad input, test-first commits and security checks. Claude uses it when asked to review a branch or PR, or to self-review before opening one. `CONTEXT.md` defines the review terms (finding, false positive, seeded branch, ...).
+
 ## Git hooks
 
 `.githooks/pre-commit` rejects commits on `main` from any terminal, not just Claude's. Branch protection isn't available on this repo, so enable it once per clone:
