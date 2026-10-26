@@ -10,6 +10,17 @@ class Status(str, Enum):
     done = "done"
 
 
+class SortKey(str, Enum):
+    created_at = "created_at"
+    due_date = "due_date"
+    title = "title"
+
+
+class SortOrder(str, Enum):
+    asc = "asc"
+    desc = "desc"
+
+
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200, pattern=r"\S")
     description: str | None = None

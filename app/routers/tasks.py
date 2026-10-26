@@ -3,7 +3,16 @@ from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.models import OverdueTask, Status, Task, TaskCreate, TaskPage, TaskUpdate
+from app.models import (
+    OverdueTask,
+    SortKey,
+    SortOrder,
+    Status,
+    Task,
+    TaskCreate,
+    TaskPage,
+    TaskUpdate,
+)
 from app.store import store
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -15,6 +24,20 @@ MAX_PAGE_SIZE = 100
 def search_key(text: str) -> str:
     # canonical caseless form (Unicode D145), recomposed to NFC so "ba" doesn't match "bá"
     return unicodedata.normalize("NFC", unicodedata.normalize("NFD", text).casefold())
+
+
+def sort_tasks(tasks: list[Task], key: SortKey, order: SortOrder) -> list[Task]:
+    # ties keep id order in both directions: sort is stable, and reverse=True keeps it stable
+    tasks = sorted(tasks, key=lambda t: t.id)
+    reverse = order == SortOrder.desc
+    if key == SortKey.due_date:
+        # undated tasks go last whatever the order
+        dated = [t for t in tasks if t.due_date is not None]
+        undated = [t for t in tasks if t.due_date is None]
+        return sorted(dated, key=lambda t: t.due_date, reverse=reverse) + undated
+    if key == SortKey.title:
+        return sorted(tasks, key=lambda t: search_key(t.title), reverse=reverse)
+    return sorted(tasks, key=lambda t: t.created_at, reverse=reverse)
 
 
 @router.post("", response_model=Task, status_code=status.HTTP_201_CREATED)
@@ -29,6 +52,8 @@ def list_tasks(
     status_filter: Status | None = Query(None, alias="status"),
     due_before: date | None = None,
     q: str | None = Query(None, min_length=1, max_length=200, pattern=r"\S"),
+    sort: SortKey | None = None,
+    order: SortOrder = SortOrder.asc,
 ) -> TaskPage:
     tasks = store.list()
     if q is not None:
@@ -42,6 +67,8 @@ def list_tasks(
         tasks = [task for task in tasks if task.status == status_filter]
     if due_before is not None:
         tasks = [task for task in tasks if task.due_date is not None and task.due_date < due_before]
+    if sort is not None:
+        tasks = sort_tasks(tasks, sort, order)
 
     total = len(tasks)
     total_pages = -(-total // size)  # round up without floats

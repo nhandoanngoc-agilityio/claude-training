@@ -31,7 +31,7 @@ uv run pytest
 | `GET` | `/health` | Liveness check |
 | `GET` | `/version` | Running app version |
 | `POST` | `/tasks` | Create a task (`title`, optional `description`, `due_date`, `status`) |
-| `GET` | `/tasks` | List tasks. Query: `page`, `size`, `status`, `due_before` |
+| `GET` | `/tasks` | List tasks. Query: `page`, `size`, `status`, `due_before`, `q`, `sort`, `order` |
 | `GET` | `/tasks/{id}` | Get one task |
 | `PATCH` | `/tasks/{id}` | Update only the fields sent in the body |
 | `DELETE` | `/tasks/{id}` | Delete a task |
@@ -39,6 +39,8 @@ uv run pytest
 `status` is one of `todo`, `in_progress`, `done`.
 
 `due_before=YYYY-MM-DD` returns tasks due strictly before that date. Tasks without a due date are not included.
+
+`sort=created_at|due_date|title` orders `GET /tasks` before paging; `order=asc|desc` (default `asc`) only applies with `sort`. Title sorting ignores case and Unicode normalization form (same as `q`). Undated tasks go last when sorting by `due_date`, in both orders. Ties keep id order. Unknown values return 422.
 
 `GET /tasks` pages results: `size` defaults to 10 (max 100), and the response includes `total` and `total_pages`.
 
