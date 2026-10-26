@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from threading import Lock
 
@@ -44,7 +45,7 @@ class TaskStore:
             self._tasks[task_id] = updated
             return updated
 
-    def set_status(self, task_ids: list[int], status: str) -> int | None:
+    def set_status(self, task_ids: Sequence[int], status: str) -> int | None:
         """Set the status of several tasks. Returns None if any id is unknown."""
         with self._lock:
             for task_id in task_ids:
