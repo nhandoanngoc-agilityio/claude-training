@@ -54,3 +54,12 @@ class TaskPage(BaseModel):
     size: int
     total: int
     total_pages: int
+
+
+class BulkStatusUpdate(BaseModel):
+    ids: list[int] = Field(min_length=1)
+    status: str
+
+
+class BulkStatusResult(BaseModel):
+    updated: int

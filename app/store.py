@@ -44,6 +44,16 @@ class TaskStore:
             self._tasks[task_id] = updated
             return updated
 
+    def set_status(self, task_ids: list[int], status: str) -> int | None:
+        """Set the status of several tasks. Returns None if any id is unknown."""
+        with self._lock:
+            for task_id in task_ids:
+                task = self._tasks.get(task_id)
+                if task is None:
+                    return None
+                self._tasks[task_id] = task.model_copy(update={"status": status})
+            return len(task_ids)
+
     def delete(self, task_id: int) -> bool:
         with self._lock:
             return self._tasks.pop(task_id, None) is not None

@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- `PATCH /tasks/bulk` sets one status on several tasks, and `GET /tasks/export.csv` downloads tasks as CSV.
 - Sort `GET /tasks` with `sort=created_at|due_date|title` and `order=asc|desc`. Undated tasks go last; unknown values return 422 (#16).
 - Project-level `security-guidance` and `claude-security` Claude Code plugins, with project rules in `.claude/claude-security-guidance.md` (#20).
 - Claude Code `PreToolUse` hook (`.claude/hooks/block_forbidden.py`) that blocks the CLAUDE.md "Never do" commands: `rm -rf`, `git push --force`, pushing or committing to `main`, and `git reset --hard`. Covered by `tests/test_hooks.py`.

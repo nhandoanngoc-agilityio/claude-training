@@ -32,6 +32,8 @@ uv run pytest
 | `GET` | `/version` | Running app version |
 | `POST` | `/tasks` | Create a task (`title`, optional `description`, `due_date`, `status`) |
 | `GET` | `/tasks` | List tasks. Query: `page`, `size`, `status`, `due_before`, `q`, `sort`, `order` |
+| `PATCH` | `/tasks/bulk` | Set the same `status` on several tasks (`ids`, `status`); 404 if an id is unknown |
+| `GET` | `/tasks/export.csv` | Download tasks as CSV (`id`, `title`, `status`, `due_date`, `created_at`). Query: `status` |
 | `GET` | `/tasks/{id}` | Get one task |
 | `PATCH` | `/tasks/{id}` | Update only the fields sent in the body |
 | `DELETE` | `/tasks/{id}` | Delete a task |

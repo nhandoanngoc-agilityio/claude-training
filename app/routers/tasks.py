@@ -1,9 +1,13 @@
+import csv
+import io
 import unicodedata
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from app.models import (
+    BulkStatusResult,
+    BulkStatusUpdate,
     OverdueTask,
     SortKey,
     SortOrder,
@@ -96,6 +100,43 @@ def list_overdue_tasks() -> list[OverdueTask]:
         if task.status != Status.done and task.due_date is not None and task.due_date < today
     ]
     return sorted(overdue, key=lambda t: (-t.days_late, t.id))
+
+
+@router.patch("/bulk", response_model=BulkStatusResult)
+def bulk_update_status(data: BulkStatusUpdate) -> BulkStatusResult:
+    updated = store.set_status(data.ids, data.status)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return BulkStatusResult(updated=updated)
+
+
+EXPORT_COLUMNS = ["id", "title", "status", "due_date", "created_at"]
+
+
+@router.get("/export.csv")
+def export_tasks_csv(status_filter: Status | None = Query(None, alias="status")) -> Response:
+    tasks = store.list()
+    if status_filter is not None:
+        tasks = [task for task in tasks if task.status == status_filter]
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(EXPORT_COLUMNS)
+    for task in tasks:
+        writer.writerow(
+            [
+                task.id,
+                task.title,
+                task.status.value,
+                task.due_date.isoformat() if task.due_date else "",
+                task.created_at.astimezone().strftime("%Y-%m-%d %H:%M:%S"),
+            ]
+        )
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="tasks.csv"'},
+    )
 
 
 @router.get("/{task_id}", response_model=Task)
