@@ -79,6 +79,21 @@ Known limits (not blocked):
 - `PostToolUse` on `Edit|Write|MultiEdit`: `.claude/hooks/format_on_edit.py` runs `uvx ruff format` on the edited Python file (line length 100, from `pyproject.toml`). It's skipped if `uvx` isn't installed. Test it with `uv run pytest tests/test_format_hook.py`.
 - `Stop`: `.claude/hooks/notify_on_finish.py` shows a desktop notification when Claude finishes its turn (`osascript` on macOS, `notify-send` on Linux, a terminal bell otherwise).
 
+## Security checks
+
+`.claude/settings.json` enables two plugins from the official `claude-plugins-official` marketplace for everyone who opens the repo in Claude Code (accept the install prompt once; `/plugin marketplace add anthropics/claude-plugins-official` if it says the marketplace is missing):
+
+- **`security-guidance`**: checks Claude's own changes as it works.
+  - Pattern warnings on every `Edit`/`Write` (shell injection, `eval`, `pickle`, hardcoded secrets, ...).
+  - An LLM review of the diff when Claude finishes a turn, and a deeper review on `git commit` / `git push`. High-severity findings go back to Claude to fix.
+  - Project rules for the LLM review are in `.claude/claude-security-guidance.md`.
+  - The LLM reviews cost tokens on every turn and commit. Turn them off for a session with `ENABLE_CODE_SECURITY_REVIEW=0`, or the whole plugin with `SECURITY_GUIDANCE_DISABLE=1`. On first run it builds a venv for the Agent SDK in `~/.claude/security/`; nothing is added to this project.
+- **`claude-security`**: on-demand scan by a team of agents, with each finding verified before it's reported. Run `/claude-security` for the menu, or `/claude-security scan my branch at medium`. It confirms time and token cost before starting.
+
+`/security-review` (built in) reviews the pending changes on the current branch.
+
+When to use which: `security-guidance` runs on its own while you work; run `/security-review` or a `claude-security` branch scan before opening a PR that touches input handling, the store, hooks or workflows; run a `claude-security` codebase scan occasionally, not per PR.
+
 ## Review checklist skill
 
 `.claude/skills/review-checklist/` holds the team's review checklist: route order, store locking, the `title` null guard, 422 on bad input, test-first commits and security checks. Claude uses it when asked to review a branch or PR, or to self-review before opening one. `CONTEXT.md` defines the review terms (finding, false positive, seeded branch, ...).
