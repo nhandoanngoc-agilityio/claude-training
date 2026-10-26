@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+
+
 def titles(response):
     return [t["title"] for t in response.json()["items"]]
 
@@ -132,3 +135,66 @@ def test_unknown_order_without_sort_is_rejected(client):
     response = client.get("/tasks", params={"order": "sideways"})
 
     assert response.status_code == 422
+
+
+def test_title_sort_treats_nfc_and_nfd_the_same(client):
+    """#22: NFC "é" sorted after "z" while NFD "é" sorted with "e"."""
+    make(client, {"title": "éb"}, {"title": "éa"}, {"title": "f"})
+
+    response = client.get("/tasks", params={"sort": "title"})
+
+    assert [t["id"] for t in response.json()["items"]] == [3, 2, 1]
+
+
+def test_sort_combined_with_search(client):
+    make(
+        client,
+        {"title": "write report"},
+        {"title": "read mail"},
+        {"title": "draft report"},
+    )
+
+    response = client.get("/tasks", params={"q": "report", "sort": "title"})
+
+    assert titles(response) == ["draft report", "write report"]
+
+
+def test_sort_combined_with_due_before(client):
+    make(
+        client,
+        {"title": "late", "due_date": "2026-10-20"},
+        {"title": "too late", "due_date": "2026-11-30"},
+        {"title": "undated"},
+        {"title": "early", "due_date": "2026-10-01"},
+    )
+
+    response = client.get(
+        "/tasks", params={"due_before": "2026-11-01", "sort": "due_date", "order": "desc"}
+    )
+
+    assert titles(response) == ["late", "early"]
+
+
+def test_sort_by_created_at_not_id(client, monkeypatch):
+    """#22: created_at order can differ from id order (e.g. the clock steps back)."""
+    stamps = iter(
+        [
+            datetime(2026, 10, 26, 12, 0, tzinfo=timezone.utc),
+            datetime(2026, 10, 26, 9, 0, tzinfo=timezone.utc),
+            datetime(2026, 10, 26, 10, 0, tzinfo=timezone.utc),
+        ]
+    )
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return next(stamps)
+
+    monkeypatch.setattr("app.store.datetime", FakeDatetime)
+    make(client, {"title": "noon"}, {"title": "nine"}, {"title": "ten"})
+
+    asc = client.get("/tasks", params={"sort": "created_at"})
+    desc = client.get("/tasks", params={"sort": "created_at", "order": "desc"})
+
+    assert titles(asc) == ["nine", "ten", "noon"]
+    assert titles(desc) == ["noon", "ten", "nine"]
