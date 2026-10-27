@@ -14,7 +14,17 @@ FastAPI task API used for team training. Data is in memory and resets on restart
 - `app/store.py`: `TaskStore`, the only place that touches stored tasks. Writes take `self._lock`.
 - `app/routers/tasks.py`: `/tasks` endpoints. Thin: validate, call the store, map `None` to 404. Declare static paths (`/tasks/overdue`) before `/{task_id}`.
 - `tests/`: one file per area (`test_update.py`, `test_filters.py`, `test_paging.py`, ...). Use the `client` fixture; it clears the store per test.
+- `intent/`: one folder per feature, holding `intent.md` (what and why) and `spec.md` (the agreed contract). See `intent/README.md`.
 - `.claude/hooks/` (Claude Code hooks, wired in `.claude/settings.json`) and `.githooks/` (git hooks): tested in `tests/test_hooks.py`, `test_format_hook.py`, `test_githooks.py`. A hook block or approval prompt is team policy: change the approach (branch, PR, specific files) rather than reaching the same result another way.
+
+## Workflow
+
+New features follow intent → spec → issue → build. Small bug fixes can start from an issue.
+
+1. **Plan**: capture the idea as `intent/<date>-<slug>/intent.md` (`write-intent` skill). The product owner reviews and merges it.
+2. **Design**: write `spec.md` beside it (`intent-to-spec` skill). The product owner resolves its concerns and merges it; the spec's issues are then opened.
+3. **Build**: start every issue in plan mode. Read the linked spec, propose the plan (files, tests, commits), and wait for approval before editing.
+4. **Test and ship**: failing tests first, then code; PR with `Closes #<issue>`; `review-checklist` before opening; Claude review runs in CI.
 
 ## Conventions
 
